@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import logging
 import json
+import logging
 import re
 import urllib.request
-import math
+from math import asin, cos, floor, radians, sin, sqrt
 
 from bs4 import BeautifulSoup
 from telegram import ParseMode
@@ -65,21 +65,36 @@ def beautify(json):
     return message, ParseMode.MARKDOWN
 
 
-def distance(x1, y1, x2, y2):
-    return math.hypot(float(x2) - float(x1), float(y2) - float(y1))
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(
+        radians, [float(lon1), float(lat1), float(lon2), float(lat2)])
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
 
 
 def get_nearest(longitude, latitude):
     nearest_stop = {
         "stop": stops[0],
-        "distance": distance(stops[0]["longitude"], stops[0]["latitude"], longitude, latitude)
+        "distance": haversine(stops[0]["longitude"], stops[0]["latitude"], longitude, latitude)
     }
     for stop in stops:
-        new_distance = distance(stop["longitude"], stop["latitude"], longitude, latitude)
+        new_distance = haversine(
+            stop["longitude"], stop["latitude"], longitude, latitude)
         if new_distance < nearest_stop["distance"]:
             nearest_stop["stop"] = stop
             nearest_stop["distance"] = new_distance
-    return nearest_stop["stop"]
+    return nearest_stop["stop"], nearest_stop["distance"]
 
 
 def handle_code(bot, update):
@@ -95,9 +110,12 @@ def handle_code(bot, update):
 
 
 def handle_location(bot, update):
-    message = "Fermata più vicina : "
-    stop = get_nearest(update.message.location.longitude, update.message.location.latitude)
-    message += stop["name"] + " codice " + stop["code"]
+    message = "Fermata più vicina : \n"
+    stop, distance = get_nearest(update.message.location.longitude,
+                                 update.message.location.latitude)
+    message += "Nome : " + stop["name"] + "\n"
+    message += "Codice : " + stop["code"] + "\n"
+    message += "Distanza : " + str(floor(distance * 1000)) + " metri\n"
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
 
@@ -112,7 +130,8 @@ updater = Updater(key)
 
 updater.dispatcher.add_handler(CommandHandler('start', start))
 updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
-updater.dispatcher.add_handler(MessageHandler(Filters.location, handle_location))
+updater.dispatcher.add_handler(
+    MessageHandler(Filters.location, handle_location))
 
 updater.start_polling()
 updater.idle()
