@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from telegram import ParseMode
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
-logging.basicConfig(level=logging.ERROR,
+logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
