@@ -11,12 +11,12 @@ from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php'
+url = 'https://www.amt.genova.it/amt/simon.php?CodiceFermata='
 
 
 # Download the AMT page
 def download(code):
-    with urllib.request.urlopen(url + "?CodiceFermata=" + code) as response:
+    with urllib.request.urlopen(url + code) as response:
         return response.read()
 
 
