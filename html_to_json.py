@@ -12,6 +12,7 @@ stops = []
 
 for marker in markers:
     stop = {
+        "name": re.findall(r"([a-zA-Z].*)", marker.get("label"))[0],
         "code": re.findall(r"^\d{4}", marker.get("label"))[0],
         "latitude": marker.get("lat"),
         "longitude": marker.get("lng"),
