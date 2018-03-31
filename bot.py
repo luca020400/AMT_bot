@@ -70,7 +70,7 @@ Basta semplicemente mandare il codice della fermata e riceverai la lista delle p
 
 
 def echo(bot, update):
-    if not re.match(r"\d{4}", update.message.text):
+    if not re.match(r"^\d{4}$", update.message.text):
         bot.send_message(chat_id=update.message.chat_id,
                          text="Codice non valido")
         return
