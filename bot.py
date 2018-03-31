@@ -79,7 +79,7 @@ def get_nearest(longitude, latitude):
         if new_distance < nearest_stop["distance"]:
             nearest_stop["stop"] = stop
             nearest_stop["distance"] = new_distance
-    return nearest_stop["stop"]["code"]
+    return nearest_stop["stop"]
 
 
 def handle_code(bot, update):
@@ -96,7 +96,8 @@ def handle_code(bot, update):
 
 def handle_location(bot, update):
     message = "Fermata più vicina : "
-    message += get_nearest(update.message.location.longitude, update.message.location.latitude)
+    stop = get_nearest(update.message.location.longitude, update.message.location.latitude)
+    message += stop["name"] + " codice " + stop["code"]
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
 
