@@ -46,19 +46,16 @@ def parse(html):
 
 # Create a nice message from the JSON object
 def beautify(json):
-    message = "`"
     if len(json["stops"]) == 0:
-        message += "Nessun transito"
-        message += "`"
-        return message
+        return "Nessun transito"
 
+    message = "`"
     message += "Fermata          : " + json["name"] + "\n\n"
     for stop in json["stops"]:
         message += "Numero Autobus   : " + stop["line"] + "\n"
         message += "Direzione        : " + stop["dest"] + "\n"
         message += "Orario di arrivo : " + stop["time"] + "\n"
         message += "Tempo rimanente  : " + stop["eta"] + "\n\n"
-
     message += "`"
 
     return message
