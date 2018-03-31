@@ -29,21 +29,23 @@ def parse(html):
     soup = BeautifulSoup(html, "lxml")
 
     font = soup.find_all('font')[1].text
-    tds = soup.find_all('td')
+    trs = soup.find_all('tr')
 
     json_message = {
         "name": font,
         "stops": []
     }
 
-    for x in range(0, len(tds), 4):
-        stop = {
-            "line": tds[x + 0].text,
-            "dest": tds[x + 1].text,
-            "time": tds[x + 2].text,
-            "eta": tds[x + 3].text,
-        }
-        json_message["stops"].append(stop)
+    for tr in trs:
+        tds = tr.find_all("td")
+        if (len(tds) == 4):
+            stop = {
+                "line": tds[0].text,
+                "dest": tds[1].text,
+                "time": tds[2].text,
+                "eta": tds[3].text,
+            }
+            json_message["stops"].append(stop)
 
     return json_message
 
