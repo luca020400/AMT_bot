@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import logging
+import json
 import re
 import urllib.request
+import math
 
 from bs4 import BeautifulSoup
 from telegram import ParseMode
@@ -11,7 +13,9 @@ from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-url = 'https://www.amt.genova.it/amt/simon.php?CodiceFermata='
+url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
+
+stops = json.load(open('stops.json'))
 
 
 # Download the AMT page
@@ -61,16 +65,27 @@ def beautify(json):
     return message, ParseMode.MARKDOWN
 
 
-def start(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="""Ricevi informazioni sulle fermate degli autobus AMT a Genova.\n
-Basta semplicemente mandare il codice della fermata e riceverai la lista delle prossime fermate.""")
+def distance(x1, y1, x2, y2):
+    return math.hypot(float(x2) - float(x1), float(y2) - float(y1))
 
 
-def echo(bot, update):
+def get_nearest(longitude, latitude):
+    nearest_stop = {
+        "stop": stops[0],
+        "distance": distance(stops[0]["longitude"], stops[0]["latitude"], longitude, latitude)
+    }
+    for stop in stops:
+        new_distance = distance(stop["longitude"], stop["latitude"], longitude, latitude)
+        if new_distance < nearest_stop["distance"]:
+            nearest_stop["stop"] = stop
+            nearest_stop["distance"] = new_distance
+    return nearest_stop["stop"]["code"]
+
+
+def handle_code(bot, update):
     if not re.match(r"^\d{4}$", update.message.text):
         bot.send_message(chat_id=update.message.chat_id,
                          text="Codice non valido")
-        return
     page = download(update.message.text)
     json_message = parse(page)
     message, mode = beautify(json_message)
@@ -79,11 +94,24 @@ def echo(bot, update):
                      parse_mode=mode)
 
 
+def handle_location(bot, update):
+    message = "Fermata più vicina : "
+    message += get_nearest(update.message.location.longitude, update.message.location.latitude)
+    bot.send_message(chat_id=update.message.chat_id,
+                     text=message)
+
+
+def start(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text="""Ricevi informazioni sulle fermate degli autobus AMT a Genova.\n
+Basta semplicemente mandare il codice della fermata e riceverai la lista delle prossime fermate.""")
+
+
 key = open("key.txt", "r").read().strip()
 updater = Updater(key)
 
 updater.dispatcher.add_handler(CommandHandler('start', start))
-updater.dispatcher.add_handler(MessageHandler(Filters.text, echo))
+updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
+updater.dispatcher.add_handler(MessageHandler(Filters.location, handle_location))
 
 updater.start_polling()
 updater.idle()
