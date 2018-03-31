@@ -8,9 +8,7 @@ markers = open("markers.xml", "r").read().strip()
 soup = BeautifulSoup(markers, "lxml")
 markers = soup.find_all('marker')
 
-stops = {
-    "stops": []
-}
+stops = []
 
 for marker in markers:
     stop = {
@@ -18,7 +16,7 @@ for marker in markers:
         "latitude": marker.get("lat"),
         "longitude": marker.get("lng"),
     }
-    stops["stops"].append(stop)
+    stops.append(stop)
 
 with open('stops.json', 'w') as outfile:
     json.dump(stops, outfile, indent=4)
