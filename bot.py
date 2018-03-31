@@ -47,7 +47,7 @@ def parse(html):
 # Create a nice message from the JSON object
 def beautify(json):
     if len(json["stops"]) == 0:
-        return "Nessun transito"
+        return "Nessun transito", None
 
     message = "`"
     message += "Fermata          : " + json["name"] + "\n\n"
@@ -58,7 +58,7 @@ def beautify(json):
         message += "Tempo rimanente  : " + stop["eta"] + "\n\n"
     message += "`"
 
-    return message
+    return message, ParseMode.MARKDOWN
 
 
 def start(bot, update):
@@ -73,10 +73,10 @@ def echo(bot, update):
         return
     page = download(update.message.text)
     json_message = parse(page)
-    message = beautify(json_message)
+    message, mode = beautify(json_message)
     bot.send_message(chat_id=update.message.chat_id,
                      text=message,
-                     parse_mode=ParseMode.MARKDOWN)
+                     parse_mode=mode)
 
 
 key = open("key.txt", "r").read().strip()
