@@ -49,13 +49,13 @@ def parse(html):
 
 
 # Create a nice message from the JSON object
-def beautify(json):
-    if len(json["stops"]) == 0:
+def beautify(stops_json):
+    if len(stops_json["stops"]) == 0:
         return "Nessun transito", None
 
     message = "`"
-    message += "Fermata          : " + json["name"] + "\n\n"
-    for stop in json["stops"]:
+    message += "Fermata          : " + stops_json["name"] + "\n\n"
+    for stop in stops_json["stops"]:
         message += "Numero Autobus   : " + stop["line"] + "\n"
         message += "Direzione        : " + stop["dest"] + "\n"
         message += "Orario di arrivo : " + stop["time"] + "\n"
@@ -118,6 +118,9 @@ def handle_location(bot, update):
     message += "Distanza : " + str(floor(distance * 1000)) + " metri\n"
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
+    bot.send_location(chat_id=update.message.chat_id,
+                      longitude=stop["longitude"],
+                      latitude=stop["latitude"])
 
 
 def start(bot, update):
