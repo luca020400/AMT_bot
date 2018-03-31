@@ -18,7 +18,6 @@ url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php'
 def download(code):
     with urllib.request.urlopen(url + "?CodiceFermata=" + code) as response:
         return response.read()
-    return ""
 
 
 # Parse the HTML in a JSON object
@@ -43,6 +42,7 @@ def parse(html):
         json_message["stops"].append(stop)
 
     return json_message
+
 
 # Create a nice message from the JSON object
 def beautify(json):
