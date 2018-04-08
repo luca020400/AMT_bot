@@ -159,7 +159,7 @@ def set_stops_number(bot, update, args):
         if not args:
             raise ValueError
         number = int(args[0])
-        if 10 < number < 1:
+        if number > 10 or number < 1:
             raise ValueError
     except ValueError:
         bot.send_message(chat_id=update.message.chat_id, text="Devi passare un numero minore o uguale a 10")
