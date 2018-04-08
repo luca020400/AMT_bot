@@ -156,6 +156,8 @@ Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazio
 
 def set_stops_number(bot, update, args):
     try:
+        if not args:
+            raise ValueError
         number = int(args[0])
         if 10 < number < 1:
             raise ValueError
