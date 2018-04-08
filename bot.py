@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import urllib.request
+import sqlite3
 from math import asin, cos, floor, radians, sin, sqrt
 
 from bs4 import BeautifulSoup
@@ -16,6 +17,21 @@ logging.basicConfig(level=logging.INFO,
 url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
 
 stops = json.load(open('stops.json'))
+database = sqlite3.connect('database.db', check_same_thread=False)
+
+
+# Utility functions
+def init_db():
+    with open('schema.sql', mode='r') as f:
+        database.cursor().executescript(f.read())
+    database.commit()
+
+
+def query_db(query, args=(), one=False):
+    cur = database.execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
 
 
 # Download the AMT page
@@ -38,7 +54,7 @@ def parse(html):
 
     for tr in trs:
         tds = tr.find_all("td")
-        if (len(tds) == 4):
+        if len(tds) == 4:
             stop = {
                 "line": tds[0].text,
                 "dest": tds[1].text,
@@ -67,6 +83,13 @@ def beautify(stops_json):
     return message, ParseMode.MARKDOWN
 
 
+def get_location_number(chat_id):
+    number = query_db('select location_number from user_data where chat_id=?', [chat_id])
+    if not number:
+        return 1
+    return number[0][0]
+
+
 def haversine(lon1, lat1, lon2, lat2):
     """
     Calculate the great circle distance between two points
@@ -85,24 +108,22 @@ def haversine(lon1, lat1, lon2, lat2):
     return c * r
 
 
-def get_nearest(longitude, latitude):
-    nearest_stop = {
-        "stop": stops[0],
-        "distance": haversine(stops[0]["longitude"], stops[0]["latitude"], longitude, latitude)
-    }
+def get_nearests(longitude, latitude, number=1):
+    nearest_stops = []
     for stop in stops:
-        new_distance = haversine(
-            stop["longitude"], stop["latitude"], longitude, latitude)
-        if new_distance < nearest_stop["distance"]:
-            nearest_stop["stop"] = stop
-            nearest_stop["distance"] = new_distance
-    return nearest_stop["stop"], nearest_stop["distance"]
+        nearest_stops.append({
+            "stop": stop,
+            "distance": haversine(stop["longitude"], stop["latitude"], longitude, latitude)
+        })
+    nearest_stops = sorted(nearest_stops, key=lambda k: k.get('distance', 0))[:number]
+    return nearest_stops
 
 
 def handle_code(bot, update):
     if not re.match(r"^\d{4}$", update.message.text):
         bot.send_message(chat_id=update.message.chat_id,
                          text="Codice non valido")
+        return
     page = download(update.message.text)
     json_message = parse(page)
     message, mode = beautify(json_message)
@@ -112,17 +133,19 @@ def handle_code(bot, update):
 
 
 def handle_location(bot, update):
-    message = "Fermata più vicina : \n"
-    stop, distance = get_nearest(update.message.location.longitude,
-                                 update.message.location.latitude)
-    message += "Nome : " + stop["name"] + "\n"
-    message += "Codice : " + stop["code"] + "\n"
-    message += "Distanza : " + str(floor(distance * 1000)) + " metri\n"
+    message = "Fermate più vicine : \n"
+    nearest_stops = get_nearests(update.message.location.longitude,
+                                 update.message.location.latitude,
+                                 get_location_number(update.message.chat_id))
+    for stop in nearest_stops:
+        message += "Nome : " + stop["stop"]["name"] + "\n"
+        message += "Codice : " + stop["stop"]["code"] + "\n"
+        message += "Distanza : " + str(floor(stop["distance"] * 1000)) + " metri\n\n"
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
     bot.send_location(chat_id=update.message.chat_id,
-                      longitude=stop["longitude"],
-                      latitude=stop["latitude"])
+                      longitude=nearest_stops[0]["stop"]["longitude"],
+                      latitude=nearest_stops[0]["stop"]["latitude"])
 
 
 def start(bot, update):
@@ -131,13 +154,27 @@ Puoi inviare il codice della fermata e riceverai la lista delle prossime fermate
 Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazioni della fermata più vicina.""")
 
 
-key = open("key.txt", "r").read().strip()
-updater = Updater(key)
+def set_stops_number(bot, update, args):
+    cur = database.cursor()
+    cur.execute("replace into user_data values (?,?)", (update.message.chat_id, int(args[0])))
+    database.commit()
+    cur.close()
+    bot.send_message(chat_id=update.message.chat_id, text="Impostazione salvate")
 
-updater.dispatcher.add_handler(CommandHandler('start', start))
-updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
-updater.dispatcher.add_handler(
-    MessageHandler(Filters.location, handle_location))
 
-updater.start_polling()
-updater.idle()
+def main():
+    key = open("key.txt", "r").read().strip()
+    updater = Updater(key)
+
+    updater.dispatcher.add_handler(CommandHandler('start', start))
+    updater.dispatcher.add_handler(CommandHandler('numero_fermate', pref, pass_args=True))
+    updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
+    updater.dispatcher.add_handler(
+        MessageHandler(Filters.location, handle_location))
+
+    updater.start_polling()
+    updater.idle()
+
+
+if __name__ == "__main__":
+    main()
