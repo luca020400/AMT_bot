@@ -156,12 +156,14 @@ Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazio
 
 def set_stops_number(bot, update, args):
     try:
-        int(args[0])
+        number = int(args[0])
+        if 10 < number < 1:
+            raise ValueError
     except ValueError:
         bot.send_message(chat_id=update.message.chat_id, text="Devi passare un numero minore o uguale a 10")
         return
     cur = database.cursor()
-    cur.execute("replace into user_data values (?,?)", (update.message.chat_id, int(args[0])))
+    cur.execute("replace into user_data values (?,?)", (update.message.chat_id, number))
     database.commit()
     cur.close()
     bot.send_message(chat_id=update.message.chat_id, text="Impostazione salvate")
