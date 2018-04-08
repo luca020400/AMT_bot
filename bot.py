@@ -84,7 +84,7 @@ def beautify(stops_json):
 
 
 def get_location_number(chat_id):
-    number = query_db('select location_number from user_data where chat_id=?', [chat_id])
+    number = query_db('select location_number from user_data where chat_id=? limit 10', [chat_id])
     if not number:
         return 1
     return number[0][0]
@@ -155,6 +155,11 @@ Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazio
 
 
 def set_stops_number(bot, update, args):
+    try:
+        int(args[0])
+    except ValueError:
+        bot.send_message(chat_id=update.message.chat_id, text="Devi passare un numero minore o uguale a 10")
+        return
     cur = database.cursor()
     cur.execute("replace into user_data values (?,?)", (update.message.chat_id, int(args[0])))
     database.commit()
@@ -167,7 +172,7 @@ def main():
     updater = Updater(key)
 
     updater.dispatcher.add_handler(CommandHandler('start', start))
-    updater.dispatcher.add_handler(CommandHandler('numero_fermate', pref, pass_args=True))
+    updater.dispatcher.add_handler(CommandHandler('numero_fermate', set_stops_number, pass_args=True))
     updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
     updater.dispatcher.add_handler(
         MessageHandler(Filters.location, handle_location))
