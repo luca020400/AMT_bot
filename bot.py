@@ -72,13 +72,13 @@ def beautify(stops_json):
     if len(stops_json["stops"]) == 0:
         return "Nessun transito", None
 
-    message = "`"
-    message += "Fermata          : " + stops_json["name"] + "\n\n"
+    message = "`" \
+        "Fermata          : " + stops_json["name"] + "\n\n"
     for stop in stops_json["stops"]:
-        message += "Numero Autobus   : " + stop["line"] + "\n"
-        message += "Direzione        : " + stop["dest"] + "\n"
-        message += "Orario di arrivo : " + stop["time"] + "\n"
-        message += "Tempo rimanente  : " + stop["eta"] + "\n\n"
+        message += "Numero Autobus   : " + stop["line"] + "\n" \
+            "Direzione        : " + stop["dest"] + "\n" \
+            "Orario di arrivo : " + stop["time"] + "\n" \
+            "Tempo rimanente  : " + stop["eta"] + "\n\n"
     message += "`"
 
     return message, ParseMode.MARKDOWN
@@ -136,15 +136,15 @@ def handle_code(bot, update):
 
 
 def handle_location(bot, update):
-    message = "Fermate più vicine : \n"
+    number = get_location_number(update.message.chat_id)
+    message = "Fermata più vicina : \n" if number == 1 else "Fermate più vicine : \n"
     nearest_stops = get_nearests(update.message.location.longitude,
                                  update.message.location.latitude,
-                                 get_location_number(update.message.chat_id))
+                                 number)
     for stop in nearest_stops:
-        message += "Nome : " + stop["stop"]["name"] + "\n"
-        message += "Codice : " + stop["stop"]["code"] + "\n"
-        message += "Distanza : " + \
-            str(floor(stop["distance"] * 1000)) + " metri\n\n"
+        message += "Nome : " + stop["stop"]["name"] + "\n" \
+            "Codice : " + stop["stop"]["code"] + "\n" \
+            "Distanza : " + str(floor(stop["distance"] * 1000)) + " metri\n\n"
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
     bot.send_location(chat_id=update.message.chat_id,
