@@ -3,13 +3,14 @@
 import json
 import logging
 import re
-import urllib.request
 import sqlite3
+import urllib.request
 from math import asin, cos, floor, radians, sin, sqrt
 
 from bs4 import BeautifulSoup
-from telegram import ParseMode
-from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
+from telegram import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (CommandHandler, ConversationHandler, Filters,
+                          MessageHandler, Updater)
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -84,7 +85,8 @@ def beautify(stops_json):
 
 
 def get_location_number(chat_id):
-    number = query_db('select location_number from user_data where chat_id=? limit 10', [chat_id])
+    number = query_db(
+        'select location_number from user_data where chat_id=? limit 10', [chat_id])
     if not number:
         return 1
     return number[0][0]
@@ -115,7 +117,8 @@ def get_nearests(longitude, latitude, number):
             "stop": stop,
             "distance": haversine(stop["longitude"], stop["latitude"], longitude, latitude)
         })
-    nearest_stops = sorted(nearest_stops, key=lambda k: k.get('distance', 0))[:number]
+    nearest_stops = sorted(
+        nearest_stops, key=lambda k: k.get('distance', 0))[:number]
     return nearest_stops
 
 
@@ -140,7 +143,8 @@ def handle_location(bot, update):
     for stop in nearest_stops:
         message += "Nome : " + stop["stop"]["name"] + "\n"
         message += "Codice : " + stop["stop"]["code"] + "\n"
-        message += "Distanza : " + str(floor(stop["distance"] * 1000)) + " metri\n\n"
+        message += "Distanza : " + \
+            str(floor(stop["distance"] * 1000)) + " metri\n\n"
     bot.send_message(chat_id=update.message.chat_id,
                      text=message)
     bot.send_location(chat_id=update.message.chat_id,
@@ -149,34 +153,65 @@ def handle_location(bot, update):
 
 
 def start(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="""Ricevi informazioni sulle fermate degli autobus AMT a Genova.\n
-Puoi inviare il codice della fermata e riceverai la lista delle prossime fermate.
-Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazioni della fermata più vicina.""")
+    bot.send_message(chat_id=update.message.chat_id,
+                     text="Ricevi informazioni sulle fermate degli autobus AMT a Genova.\n"
+                          "Puoi inviare il codice della fermata e riceverai la lista delle prossime fermate."
+                          "Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazioni della "
+                          "fermata più vicina.")
 
 
-def set_stops_number(bot, update, args):
-    try:
-        if not args:
-            raise ValueError
-        number = int(args[0])
-        if number > 10 or number < 1:
-            raise ValueError
-    except ValueError:
-        bot.send_message(chat_id=update.message.chat_id, text="Devi passare un numero minore o uguale a 10")
-        return
+keyboard = [
+    ['7', '8', '9'],
+    ['4', '5', '6'],
+    ['1', '2', '3'],
+]
+
+markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+
+NUMBER = range(1)
+
+
+def set_stops_number(bot, update):
+    number = int(update.message.text)
     cur = database.cursor()
-    cur.execute("replace into user_data values (?,?)", (update.message.chat_id, number))
+    cur.execute("replace into user_data values (?,?)",
+                (update.message.chat_id, number))
     database.commit()
     cur.close()
-    bot.send_message(chat_id=update.message.chat_id, text="Impostazione salvate")
+    bot.send_message(chat_id=update.message.chat_id,
+                     text="Impostazione salvate")
+    return ConversationHandler.END
+
+
+def set_stops_number_start(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text="Inserisci il numero di fermate vicino a te che vuoi vedere "
+                                                          "qundo invii la tua posizione", reply_markup=markup)
+    return NUMBER
+
+
+def cancel(_, update):
+    update.message.reply_text(
+        "Impostazione non salvate", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
 
 
 def main():
     key = open("key.txt", "r").read().strip()
     updater = Updater(key)
 
+    stops_number_handler = ConversationHandler(
+        entry_points=[CommandHandler(
+            'numero_fermate', set_stops_number_start)],
+
+        states={
+            NUMBER: [MessageHandler(Filters.text, set_stops_number)]
+        },
+
+        fallbacks=[CommandHandler('cancel', cancel)]
+    )
+
+    updater.dispatcher.add_handler(stops_number_handler)
     updater.dispatcher.add_handler(CommandHandler('start', start))
-    updater.dispatcher.add_handler(CommandHandler('numero_fermate', set_stops_number, pass_args=True))
     updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
     updater.dispatcher.add_handler(
         MessageHandler(Filters.location, handle_location))
