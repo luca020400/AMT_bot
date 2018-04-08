@@ -108,7 +108,7 @@ def haversine(lon1, lat1, lon2, lat2):
     return c * r
 
 
-def get_nearests(longitude, latitude, number=1):
+def get_nearests(longitude, latitude, number):
     nearest_stops = []
     for stop in stops:
         nearest_stops.append({
