@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+import datetime
 import json
 import logging
 import re
 import sqlite3
+import urllib.parse
 import urllib.request
 from math import asin, cos, floor, radians, sin, sqrt
 
@@ -15,7 +17,8 @@ from telegram.ext import (CommandHandler, ConversationHandler, Filters,
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-url = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
+url_stops = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
+url_line = 'http://www.amt.genova.it/amt/servizi/orari_tel.php'
 
 stops = json.load(open('stops.json'))
 database = sqlite3.connect('database.db', check_same_thread=False)
@@ -35,20 +38,33 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-# Download the AMT page
-def download(code):
-    with urllib.request.urlopen(url + code) as response:
+# Download the AMT pages
+def download_stops(code):
+    with urllib.request.urlopen(url_stops + code) as response:
+        return response.read()
+
+
+def download_line(line):
+    today = datetime.datetime.today()
+    params = urllib.parse.urlencode({
+        'linea': line,
+        'gg': today.day,
+        'mm': today.month,
+        'aa': today.year,
+        'cmdOrari': 'Mostra+Orari',
+    }).encode("utf-8")
+    with urllib.request.urlopen(url_line, params) as response:
         return response.read()
 
 
 # Parse the HTML in a JSON object
-def parse(html):
+def parse_stops(html):
     soup = BeautifulSoup(html, "lxml")
 
     font = soup.find_all('font')[1].text
     trs = soup.find_all('tr')
 
-    json_message = {
+    json_stops = {
         "name": font,
         "stops": []
     }
@@ -62,23 +78,63 @@ def parse(html):
                 "time": tds[2].text,
                 "eta": tds[3].text,
             }
-            json_message["stops"].append(stop)
+            json_stops["stops"].append(stop)
 
-    return json_message
+    return json_stops
+
+
+def parse_line(html):
+    soup = BeautifulSoup(html, "lxml")
+
+    headlines = list(filter(lambda x:
+                            not x.text.startswith("Orari") and not x.text.startswith("LINEA"), soup.find_all('font')))
+    tables = soup.find_all('table')
+
+    json_line = []
+
+    for counter, table in enumerate(filter(lambda x: not len(x.find_all("td")) == 0, tables)):
+        times = []
+        tds = table.find_all("td")
+        for td in tds:
+            times.append(td.text)
+
+        line = {
+            "direction": headlines[counter].text,
+            "times": times,
+        }
+        json_line.append(line)
+
+    return json_line
 
 
 # Create a nice message from the JSON object
-def beautify(stops_json):
-    if len(stops_json["stops"]) == 0:
+def beautify_stops(json_stops):
+    if len(json_stops["stops"]) == 0:
         return "Nessun transito", None
 
     message = "`" \
-        "Fermata          : " + stops_json["name"] + "\n\n"
-    for stop in stops_json["stops"]:
-        message += "Numero Autobus   : " + stop["line"] + "\n" \
-            "Direzione        : " + stop["dest"] + "\n" \
-            "Orario di arrivo : " + stop["time"] + "\n" \
-            "Tempo rimanente  : " + stop["eta"] + "\n\n"
+        "Fermata          : " + json_stops["name"] + "\n\n"
+    for stop in json_stops["stops"]:
+        message += "Numero Autobus   : " + stop["line"] + "\n"
+        message += "Direzione        : " + stop["dest"] + "\n"
+        message += "Orario di arrivo : " + stop["time"] + "\n"
+        message += "Tempo rimanente  : " + stop["eta"] + "\n\n"
+    message += "`"
+
+    return message, ParseMode.MARKDOWN
+
+
+def beautify_line(line_json):
+    if len(line_json) == 0:
+        return "Linea inesistente", None
+
+    message = "`"
+    for line in line_json:
+        message += line["direction"] + "\n"
+        for i in range(0, len(line["times"])):
+            message += line["times"][i] + \
+                (", " if i != len(line["times"]) - 1 else "")
+        message += "\n\n"
     message += "`"
 
     return message, ParseMode.MARKDOWN
@@ -122,17 +178,32 @@ def get_nearests(longitude, latitude, number):
     return nearest_stops
 
 
-def handle_code(bot, update):
-    if not re.match(r"^\d{4}$", update.message.text):
-        bot.send_message(chat_id=update.message.chat_id,
-                         text="Codice non valido")
-        return
-    page = download(update.message.text)
-    json_message = parse(page)
-    message, mode = beautify(json_message)
+def handle_line(bot, update):
+    page = download_line(update.message.text)
+    line_json = parse_line(page)
+    message, mode = beautify_line(line_json)
     bot.send_message(chat_id=update.message.chat_id,
                      text=message,
                      parse_mode=mode)
+
+
+def handle_code(bot, update):
+    page = download_stops(update.message.text)
+    stops_json = parse_stops(page)
+    message, mode = beautify_stops(stops_json)
+    bot.send_message(chat_id=update.message.chat_id,
+                     text=message,
+                     parse_mode=mode)
+
+
+def handle_code_or_line(bot, update):
+    if re.match(r"^\d{4}$", update.message.text):
+        handle_code(bot, update)
+    elif re.match(r"^\d*", update.message.text):
+        handle_line(bot, update)
+    else:
+        bot.send_message(chat_id=update.message.chat_id,
+                         text="Codice non valido")
 
 
 def handle_location(bot, update):
@@ -212,7 +283,8 @@ def main():
 
     updater.dispatcher.add_handler(stops_number_handler)
     updater.dispatcher.add_handler(CommandHandler('start', start))
-    updater.dispatcher.add_handler(MessageHandler(Filters.text, handle_code))
+    updater.dispatcher.add_handler(
+        MessageHandler(Filters.text, handle_code_or_line))
     updater.dispatcher.add_handler(
         MessageHandler(Filters.location, handle_location))
 
