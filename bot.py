@@ -131,9 +131,8 @@ def beautify_line(line_json):
     message = "`"
     for line in line_json:
         message += line["direction"] + "\n"
-        for i in range(0, len(line["times"])):
-            message += line["times"][i] + \
-                (", " if i != len(line["times"]) - 1 else "")
+        for i, time in enumerate(line["times"]):
+            message += time + (", " if i != len(line["times"]) - 1 else "")
         message += "\n\n"
     message += "`"
 
