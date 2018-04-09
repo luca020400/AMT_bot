@@ -115,10 +115,10 @@ def beautify_stops(json_stops):
     message = "`" \
         "Fermata          : " + json_stops["name"] + "\n\n"
     for stop in json_stops["stops"]:
-        message += "Numero Autobus   : " + stop["line"] + "\n"
-        message += "Direzione        : " + stop["dest"] + "\n"
-        message += "Orario di arrivo : " + stop["time"] + "\n"
-        message += "Tempo rimanente  : " + stop["eta"] + "\n\n"
+        message += "Numero Autobus   : " + stop["line"] + "\n" \
+            "Direzione        : " + stop["dest"] + "\n" \
+            "Orario di arrivo : " + stop["time"] + "\n" \
+            "Tempo rimanente  : " + stop["eta"] + "\n\n"
     message += "`"
 
     return message, ParseMode.MARKDOWN
