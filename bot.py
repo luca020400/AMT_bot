@@ -225,8 +225,8 @@ def handle_location(bot, update):
 def start(bot, update):
     bot.send_message(chat_id=update.message.chat_id,
                      text="Ricevi informazioni sulle fermate degli autobus AMT a Genova.\n"
-                          "Puoi inviare il codice della fermata e riceverai la lista delle prossime fermate."
-                          "Puoi inviare il numero dell'autobus e riceverai la lista delle partenze dai capolinea."
+                          "Puoi inviare il codice della fermata e riceverai la lista delle prossime fermate.\n"
+                          "Puoi inviare il numero dell'autobus e riceverai la lista delle partenze dai capolinea.\n"
                           "Puoi inviare la tua posizione GPS per ricevere approssimativamente le informazioni della "
                           "fermata più vicina.")
 
