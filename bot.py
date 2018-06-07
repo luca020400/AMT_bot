@@ -47,11 +47,11 @@ def download_stops(code):
 def download_line(line):
     today = datetime.datetime.today()
     params = urllib.parse.urlencode({
+        'giorno': today.day,
+        'mese': today.month - 1,
+        'anno': today.year,
         'linea': line,
-        'gg': today.day,
-        'mm': today.month,
-        'aa': today.year,
-        'cmdOrari': 'Mostra+Orari',
+        'cmdOrari': 'Mostra Orari',
     }).encode("utf-8")
     with urllib.request.urlopen(url_line, params) as response:
         return response.read()
