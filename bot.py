@@ -17,7 +17,7 @@ from telegram.ext import (CommandHandler, ConversationHandler, Filters,
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-url_stops = 'http://www.amt.genova.it/amt/servizi/passaggi_i.php?CodiceFermata='
+url_stops = 'https://www.amt.genova.it/amt/simon.php?CodiceFermata='
 url_line = 'http://www.amt.genova.it/amt/servizi/orari_tel.php'
 
 stops = json.load(open('stops.json'))
