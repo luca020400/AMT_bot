@@ -125,9 +125,11 @@ stops=(
 699
 )
 
+rm markers.xml
 for i in ${stops[@]}; do
     sleep 0.5
     curl -k "https://www.amt.genova.it/amt/readxml_linea.php?file=${i}_1.xml" | grep "marker " >> markers.xml
 done
 
 sort -u markers.xml -o markers.xml
+dos2unix markers.xml
